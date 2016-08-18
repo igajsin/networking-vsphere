@@ -45,28 +45,6 @@ OVSVAPP_VCDRIVER=$OVSVAPP_NETWORKING_DIR/networking_vsphere/nova/virt/vmwareapi/
 # OVSvApp VMops file path
 OVSVAPP_VMOPS=$OVSVAPP_NETWORKING_DIR/networking_vsphere/nova/virt/vmwareapi/ovsvapp_vmops.py
 
-# Do something dependly on current driver.
-function _is_vmware {
-    if [[ $OVSVAPP_MODE =~ "vmware_dvs" ]]; then
-	res=0
-    else
-	res=1
-    fi
-    return $res
-}
-
-function _when_vmware {
-    if _is_vmware ; then
-	$*
-    fi
-}
-
-function _when_ovsvapp {
-    if ! _is_vmware ; then
-	$*
-    fi
-}
-
 # Omit ssl verification.
 function _patch_oslo_vmware {
     if [[ ("$VMWARE_DVS_USE_SS_SSL" = "true") || ("$VMWARE_DVS_USE_SS_SSL" = "True") ]]; then
@@ -111,8 +89,11 @@ function configure_ovsvapp_compute_driver {
 
 function start_ovsvapp_agent {
     echo "Starting OVSvApp Agent"
-    _when_ovsvapp run_process ovsvapp-agent "python $OVSVAPP_AGENT_BINARY --config-file $NEUTRON_CONF --config-file /$OVSVAPP_CONF_FILE"
-    _when_vmware run_process vmware_dvs-agent "python $OVSVAPP_AGENT_BINARY --config-file $NEUTRON_CONF --config-file /$OVSVAPP_CONF_FILE"
+    if [[ $OVSVAPP_MODE =~ "vmware_dvs" ]]; then
+	_when_vmware run_process vmware_dvs-agent "python $OVSVAPP_AGENT_BINARY --config-file $NEUTRON_CONF --config-file /$OVSVAPP_CONF_FILE"
+    else
+	_when_ovsvapp run_process ovsvapp-agent "python $OVSVAPP_AGENT_BINARY --config-file $NEUTRON_CONF --config-file /$OVSVAPP_CONF_FILE"
+    fi
 }
 
 function cleanup_ovsvapp_bridges {
@@ -177,8 +158,10 @@ function install_ovsvapp_dependency {
     install_nova
     install_neutron
     _neutron_ovs_base_install_agent_packages
-    _when_vmware sudo pip install "git+git://github.com/yunesj/suds#egg=suds"
-    _when_vmware _patch_oslo_vmware
+    if [[ $OVSVAPP_MODE =~ "vmware_dvs" ]]; then
+	_when_vmware sudo pip install "git+git://github.com/yunesj/suds#egg=suds"
+	_when_vmware _patch_oslo_vmware
+    fi
 }
 
 function install_networking_vsphere {
