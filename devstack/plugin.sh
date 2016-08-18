@@ -159,8 +159,8 @@ function install_ovsvapp_dependency {
     install_neutron
     _neutron_ovs_base_install_agent_packages
     if [[ $OVSVAPP_MODE =~ "vmware_dvs" ]]; then
-	_when_vmware sudo pip install "git+git://github.com/yunesj/suds#egg=suds"
-	_when_vmware _patch_oslo_vmware
+	sudo pip install "git+git://github.com/yunesj/suds#egg=suds"
+	_patch_oslo_vmware
     fi
 }
 
